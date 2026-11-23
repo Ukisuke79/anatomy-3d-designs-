@@ -14,3 +14,6 @@ examples/*/*-a4.png
 examples/*/*-letter.html
 examples/*/*-letter.png
 examples/*/*-letter.pdf
+
+# the static site scripts/site.mjs writes for the deploy
+.site/
