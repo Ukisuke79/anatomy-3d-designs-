@@ -1,0 +1,112 @@
+/* The figure's own furniture: the stage, the three bench controls, the line of
+   words that says what the machine is doing. */
+
+.te { margin: 0 }
+
+/* the stage lifts the drawing off the page the same way the plate does */
+.te-stage {
+  position: relative;
+  border-radius: 14px;
+  background: var(--anatomy-card);
+  box-shadow: var(--anatomy-lift);
+  overflow: hidden;
+}
+.te-stage svg { display: block; width: 100%; height: auto }
+
+/* the gas is drawn inside the bore: it has to read as something in there, not
+   as another shade of metal */
+.te-gas { stroke: none; opacity: .88 }
+.te-gas-core { stroke: none; opacity: .92 }
+
+/* the heads are engraved, so their names sit on the metal, not in the ink */
+.te-stage .iso-face-text[font-size="4.6"] { fill: var(--anatomy-lo) }
+
+/* what the machine is doing, in a sentence, under the drawing */
+.te-said {
+  margin: 14px 2px 0;
+  font: 12px/1.7 var(--anatomy-mono);
+  color: var(--anatomy-muted);
+  letter-spacing: .01em;
+  min-height: 2.6em;
+}
+
+/* three screws to turn, and a switch */
+.te-controls {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr)) auto;
+  gap: 18px;
+  align-items: end;
+  margin: 22px 0 0;
+  padding-top: 18px;
+  border-top: 1px solid var(--anatomy-faint);
+}
+.te-control { display: grid; gap: 6px; min-width: 0 }
+.te-control span {
+  font: 10px/1.2 var(--anatomy-mono);
+  text-transform: uppercase;
+  letter-spacing: .1em;
+  color: var(--anatomy-muted);
+}
+.te-control output {
+  font: 13px/1 var(--anatomy-mono);
+  color: var(--anatomy-strong);
+  font-variant-numeric: tabular-nums;
+}
+.te-control input[type="range"] {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 100%;
+  height: 22px;
+  background: transparent;
+  cursor: ew-resize;
+}
+.te-control input[type="range"]::-webkit-slider-runnable-track { height: 1px; background: var(--anatomy-lo) }
+.te-control input[type="range"]::-moz-range-track { height: 1px; background: var(--anatomy-lo) }
+.te-control input[type="range"]::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  width: 11px;
+  height: 11px;
+  margin-top: -5px;
+  border-radius: 50%;
+  background: var(--anatomy-paper);
+  border: 1px solid var(--anatomy-hi);
+  transition: transform .15s var(--anatomy-ease);
+}
+.te-control input[type="range"]::-moz-range-thumb {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: var(--anatomy-paper);
+  border: 1px solid var(--anatomy-hi);
+}
+.te-control input[type="range"]:active::-webkit-slider-thumb { transform: scale(1.25) }
+.te-control input[type="range"]:focus-visible { outline: 1px solid var(--anatomy-blue); outline-offset: 4px }
+
+.te-flip {
+  font: 10px/1 var(--anatomy-mono);
+  letter-spacing: .08em;
+  text-transform: uppercase;
+  color: var(--anatomy-strong);
+  background: var(--anatomy-card);
+  border: 1px solid var(--anatomy-lo);
+  border-radius: 999px;
+  padding: 10px 15px;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: border-color .2s var(--anatomy-ease), color .2s var(--anatomy-ease);
+}
+.te-flip:hover { border-color: var(--anatomy-mid) }
+.te-flip:focus-visible { outline: 1px solid var(--anatomy-blue); outline-offset: 3px }
+.te-flip[aria-pressed="true"] { border-color: var(--anatomy-hi); color: var(--anatomy-lit) }
+
+@media (max-width: 720px) {
+  .te-controls { grid-template-columns: repeat(2, minmax(0, 1fr)) }
+  .te-flip { grid-column: 1 / -1; justify-self: start }
+}
+@media (prefers-reduced-motion: reduce) {
+  .te-flip { display: none }
+}
+
+/* a spoke casts a band across the wheel's web: the one cue that the wheel is
+   turning, on a face as pale as the rim */
+.te-stage [data-shadow] { opacity: .5 }
