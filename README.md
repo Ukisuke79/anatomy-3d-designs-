@@ -83,6 +83,8 @@ That's it. No API keys and nothing to `npm install`: the kit uses only Node's bu
 
 Every screenshot is the light theme of a page in [`examples/`](examples), captured with the skill's own [`scripts/capture.mjs`](scripts/capture.mjs) and [`scripts/drive.mjs`](scripts/drive.mjs). The built pages are committed: open any `.html` in `examples/` to try it.
 
+The same pages are served as a static site. `node scripts/site.mjs` collects them into `.site/` with an index, and [`.github/workflows/pages.yml`](.github/workflows/pages.yml) publishes that folder to GitHub Pages on every push to `main` — turn it on once under **Settings → Pages → Source: GitHub Actions**. `vercel.json` declares the same shape for a Vercel project connected to this repository: build `node scripts/site.mjs`, output `.site`, no install step. Nothing is compiled at request time; a figure is one self-contained page whether it is opened from disk or from a URL.
+
 ## What it makes
 
 Three kinds of figure. All three share one kit, one camera and one set of craft rules.
