@@ -1,0 +1,63 @@
+name: Pages
+
+# Publishes the figures as a static site: every example is rebuilt from its own
+# script, then scripts/site.mjs collects the pages into .site/ and the artifact
+# goes to GitHub Pages. Nothing here needs a network asset at run time — each
+# figure page carries its own styles, script and geometry.
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: pages-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    name: Build the gallery
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 22
+
+      # The pages are committed, and CI rebuilds them on macOS to prove they
+      # still match their models; this job only collects them. Rebuilding here
+      # instead would publish a page whose last-bit floats differ from the
+      # committed one (node's trigonometry is not identical across platforms).
+      - name: Collect the pages
+        run: node scripts/site.mjs
+
+      - name: The gallery is not empty
+        run: |
+          test -f .site/index.html
+          test "$(ls .site/*.html | wc -l)" -ge 17
+          du -sh .site
+
+      - uses: actions/configure-pages@v6
+
+      - uses: actions/upload-pages-artifact@v5
+        with:
+          path: .site
+
+  deploy:
+    name: Deploy
+    needs: build
+    runs-on: ubuntu-latest
+    permissions:
+      pages: write
+      id-token: write
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@v5

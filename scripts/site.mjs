@@ -2,6 +2,7 @@
 // without cloning the repository: `node scripts/site.mjs` writes `.site/`, which
 // holds every built page plus a small index. Nothing here builds a figure; it
 // only copies what the examples' own build scripts wrote.
+import { spawnSync } from "node:child_process";
 import { cpSync, existsSync, mkdirSync, readdirSync, rmSync, writeFileSync } from "node:fs";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -10,7 +11,7 @@ const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const EXAMPLES = join(ROOT, "examples");
 const OUT = join(ROOT, ".site");
 
-// every page an example build writes, in the order the gallery lists them
+// every page an example build writes
 const PAGE = /\.html$/;
 // the examples in the order the README's table lists them, then anything else
 const ORDER = [
@@ -23,18 +24,40 @@ const ORDER = [
   "turning-dial",
   "thermodynamics-engine",
 ];
- // the print sheets are built per format on demand, and the -verify page is a
-// working sheet for the checks, not a figure
-// (the stress sheet is a benchmark, not a figure)
+// the print sheets are built per format on demand, the -verify page is a working
+// sheet for the checks and the -stress page is a benchmark; none is a figure
 const SKIP = /-(a4|letter|verify|stress)(-light)?\.html$/;
 
 rmSync(OUT, { recursive: true, force: true });
 mkdirSync(OUT, { recursive: true });
 
-const pages = [];
+// With --build, every example is rebuilt from its own script first, in both
+// themes, so a host can serve figures made from the current source rather than
+// from pages committed earlier. A figure whose build fails is reported and
+// skipped; the rest of the site still goes out.
+const BUILD = process.argv.includes("--build");
+const failures = [];
+
 const names = readdirSync(EXAMPLES).sort();
 const rank = (name) => (ORDER.includes(name) ? ORDER.indexOf(name) : ORDER.length);
 names.sort((a, b) => rank(a) - rank(b) || a.localeCompare(b));
+
+if (BUILD) {
+  for (const name of names) {
+    const script = join(EXAMPLES, name, "build.mjs");
+    if (!existsSync(script)) continue;
+    for (const theme of [[], ["--light"]]) {
+      const run = spawnSync(process.execPath, [script, ...theme], { cwd: ROOT, encoding: "utf8" });
+      if (run.status !== 0) {
+        const why = (run.stderr || "").trim().split("\n").slice(-3).join(" ");
+        failures.push(`${name} ${theme.join(" ") || "dark"}: ${why}`);
+        console.error(`site: ${name} ${theme.join(" ") || "dark"} failed to build`);
+      }
+    }
+  }
+}
+
+const pages = [];
 for (const name of names) {
   const folder = join(EXAMPLES, name);
   let entries;
@@ -55,8 +78,23 @@ for (const name of names) {
 }
 
 const title = (name) => name.split("-").map((word) => word[0].toUpperCase() + word.slice(1)).join(" ");
-const row = ({ example, file, light }) =>
-  `      <li><a href="./${file}"><b>${title(example)}</b><span>${light ? "light" : "dark"}</span></a></li>`;
+
+// one row per figure, with the theme as a pair of links rather than a row of its
+// own: the same drawing twice is one thing to look at, not two
+const figures = [];
+for (const page of pages) {
+  let figure = figures.find((entry) => entry.example === page.example);
+  if (!figure) figures.push((figure = { example: page.example, pages: {} }));
+  figure.pages[page.light ? "light" : "dark"] = page.file;
+}
+
+const swipe = (figure, theme) =>
+  figure.pages[theme]
+    ? `<a class="t" href="./${figure.pages[theme]}" aria-label="${title(figure.example)}, ${theme}">${theme}</a>`
+    : `<span class="t off">${theme}</span>`;
+
+const row = (figure) =>
+  `      <li><b>${title(figure.example)}</b><p>${swipe(figure, "dark")}${swipe(figure, "light")}</p></li>`;
 
 const index = `<!doctype html>
 <html lang="en">
@@ -76,32 +114,39 @@ const index = `<!doctype html>
   h1 { margin: 0; font: 500 20px/1.3 ui-sans-serif, system-ui, sans-serif; color: #e6e6e6; letter-spacing: -.01em }
   p.lede { margin: 10px 0 40px; max-width: 54ch; color: #6e6e6e }
   ul { list-style: none; margin: 0; padding: 0; border-top: 1px solid #1c1c1c }
-  a {
-    display: flex; justify-content: space-between; align-items: baseline; gap: 16px;
+  li {
+    display: flex; justify-content: space-between; align-items: baseline; gap: 20px;
     padding: 15px 2px; border-bottom: 1px solid #1c1c1c;
-    color: #d4d4d4; text-decoration: none; transition: color .15s ease;
   }
-  a:hover b { color: #fff }
-  b { font-weight: 500; color: #c9c9c9 }
-  span { font: 11px/1 ui-monospace, "SF Mono", Menlo, Consolas, monospace; letter-spacing: .08em; text-transform: uppercase; color: #5c5c5c }
+  li > b { font-weight: 500; color: #d4d4d4 }
+  li > p { display: flex; gap: 6px; margin: 0; flex: none }
+  a.t {
+    font: 11px/1 ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+    letter-spacing: .08em; text-transform: uppercase; color: #8a8a8a; text-decoration: none;
+    padding: 5px 8px; border: 1px solid #242424; border-radius: 3px;
+    transition: color .15s ease, border-color .15s ease;
+  }
+  a.t:hover { color: #e6e6e6; border-color: #3a3a3a }
+  span.t.off { color: #3a3a3a; border: 1px solid transparent; padding: 5px 8px;
+    font: 11px/1 ui-monospace, monospace; letter-spacing: .08em; text-transform: uppercase }
   footer { margin-top: 40px; font: 11px/1.7 ui-monospace, monospace; color: #4a4a4a }
-  footer a { display: inline; padding: 0; border: 0; color: #6e6e6e }
+  footer a { color: #6e6e6e; text-decoration: none }
+  footer a:hover { color: #a3a3a3 }
 </style>
 </head>
 <body>
   <main>
     <h1>Anatomy — built figures</h1>
-    <p class="lede">Standalone pages written by each example's own build script. Every figure is one self-contained file: no scripts, fonts or styles come from the network.</p>
+    <p class="lede">Standalone pages written by each example's own build script, in a dark and a light drawing. Every figure is one self-contained file — no scripts, fonts or styles come from the network — and every part moves from the same model that prints the numbers.</p>
     <ul>
-${pages.map(row).join("\n")}
+${figures.map(row).join("\n")}
     </ul>
-    <footer>Source: github.com/Ukisuke79/anatomy-3d-designs- · built ${pages.length} pages</footer>
+    <footer>Source: <a href="https://github.com/Ukisuke79/anatomy-3d-designs-">Ukisuke79/anatomy-3d-designs-</a> · ${figures.length} figures, ${pages.length} pages</footer>
   </main>
 </body>
 </html>
 `;
 
 writeFileSync(join(OUT, "index.html"), index);
-// Vercel serves a folder of static files from here without further configuration
-if (!existsSync(join(OUT, "index.html"))) throw new Error("index.html was not written");
-console.log(`wrote .site/ — ${pages.length} pages and index.html`);
+for (const failure of failures) console.error(`site: ${failure}`);
+console.log(`wrote .site/ — ${figures.length} figures, ${pages.length} pages, index.html`);
