@@ -58,6 +58,7 @@ if (BUILD) {
 }
 
 const pages = [];
+const svgs = [];
 for (const name of names) {
   const folder = join(EXAMPLES, name);
   let entries;
@@ -71,30 +72,41 @@ for (const name of names) {
     cpSync(join(folder, file), join(OUT, file));
     pages.push({ example: name, file, light });
   }
-  // the lone SVG of a figure is worth serving too: it is the drawing on its own
+  // several examples name the loose drawing output.svg, so flattening them into
+  // one folder would keep only the last one written
   for (const file of entries.filter((entry) => entry.endsWith(".svg")).sort()) {
-    cpSync(join(folder, file), join(OUT, file));
+    const stem = file.slice(0, -4).replace(/^output(?:-|$)/, "");
+    const light = stem === "light" || /-light$/.test(stem);
+    const served = `${name}${light ? "-light" : ""}.svg`;
+    cpSync(join(folder, file), join(OUT, served));
+    svgs.push({ example: name, file: served, light });
   }
 }
 
 const title = (name) => name.split("-").map((word) => word[0].toUpperCase() + word.slice(1)).join(" ");
 
-// one row per figure, with the theme as a pair of links rather than a row of its
-// own: the same drawing twice is one thing to look at, not two
 const figures = [];
 for (const page of pages) {
   let figure = figures.find((entry) => entry.example === page.example);
-  if (!figure) figures.push((figure = { example: page.example, pages: {} }));
+  if (!figure) figures.push((figure = { example: page.example, pages: {}, drawing: null }));
   figure.pages[page.light ? "light" : "dark"] = page.file;
 }
+for (const entry of svgs) {
+  const figure = figures.find((candidate) => candidate.example === entry.example);
+  if (figure && !figure.drawing) figure.drawing = entry.file;
+}
+
+const link = (href, label, what) =>
+  `<a class="t" href="./${href}" aria-label="${what}, ${label}">${label}</a>`;
 
 const swipe = (figure, theme) =>
-  figure.pages[theme]
-    ? `<a class="t" href="./${figure.pages[theme]}" aria-label="${title(figure.example)}, ${theme}">${theme}</a>`
-    : `<span class="t off">${theme}</span>`;
+  figure.pages[theme] ? link(figure.pages[theme], theme, title(figure.example)) : "";
+
+// the drawing on its own is a third link: the same geometry with no page around it
+const drawing = (figure) => (figure.drawing ? link(figure.drawing, "svg", title(figure.example)) : "");
 
 const row = (figure) =>
-  `      <li><b>${title(figure.example)}</b><p>${swipe(figure, "dark")}${swipe(figure, "light")}</p></li>`;
+  `      <li><b>${title(figure.example)}</b><p>${swipe(figure, "dark")}${swipe(figure, "light")}${drawing(figure)}</p></li>`;
 
 const index = `<!doctype html>
 <html lang="en">
